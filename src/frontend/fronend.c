@@ -1,5 +1,14 @@
-#include "frontend.h"
-#include "termbox2.h"
+#include "./frontend.h"
+
+struct tb_event ev;
+
+int fe_width(void) { tb_width(); }
+int fe_height(void) { tb_height(); }
+
+void fe_init(void) { tb_init(); }
+void fe_present(void) { tb_present(); }
+void fe_execute_events(void) { tb_poll_event(&ev); }
+void fe_exit(void) { tb_shutdown(); }
 
 void _window_drawBorder(struct Window *window)
 {
@@ -101,7 +110,7 @@ void _window_drawGridLayout(struct Window *window)
     }
 }
 
-void drawWindow(struct Window *window)
+void fe_drawWindow(struct Window *window)
 {
     _window_drawBorder(window);
     _window_drawTitle(window);

@@ -1,7 +1,9 @@
-#define TB_IMPL
-#include "termbox2.h"
 #include <stdio.h>
+
+#define TB_IMPL
+
 #include "frontend/frontend.h"
+#include "getFileTextSection.h"
 
 #ifndef my_malloc
 #define my_malloc malloc
@@ -11,61 +13,66 @@
 
 int main()
 {
-    // printf("running on process %ld\n", (long)getpid());
+
+    printf("running on process %ld\n", (long)getpid());
     // getc(stdin);
 
-    tb_init();
+    FileTextSection textSection = getTextSectionFromMaps();
 
-    const char *lines[] = {
-        "line1", "line2",  "line3",  "line4",  "line5",  "line6",  "line7",  "line8",
-        "line9", "line10", "line11", "line12", "line13", "line14", "line15",
-    };
+    int instructionCount = 0;
+
+    Instruction *instructions = getInstructions((uint8_t *)textSection.start, textSection.end - textSection.start, (uint64_t)textSection.start, &instructionCount);
+    const char *instructionsText[instructionCount];
+    for (int i = 0; i < instructionCount; i++)
+    {
+        instructionsText[i] = instructions[i].text;
+    }
+
+    fe_init();
 
     struct my_windowLayoutVerticalParams windowLayoutParams = {.isLinesNumbered = true};
     struct my_windowLayoutGridParams windowGridParams = {.horizontal_lines = 3};
 
     struct Window code_window = {.posX = 0,
                                  .posY = 0,
-                                 .width = tb_width() / 2,
-                                 .height = tb_height(),
+                                 .width = fe_width() / 2,
+                                 .height = fe_height(),
                                  .title = "My Window",
-                                 .textsNum = 15,
-                                 .texts = lines,
+                                 .textsNum = instructionCount,
+                                 .texts = instructionsText,
                                  .layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL,
                                  .layoutParams = &windowLayoutParams};
 
     struct Window up_right_window = {.posX = code_window.width,
                                      .posY = 0,
-                                     .width = tb_width() / 2,
-                                     .height = tb_height() / 2,
+                                     .width = fe_width() / 2,
+                                     .height = fe_height() / 2,
                                      .title = "Up Right Window",
                                      .textsNum = 15,
-                                     .texts = lines,
+                                     .texts = instructionsText,
                                      .layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL,
                                      .layoutParams = &windowLayoutParams};
 
     struct Window bottom_right_window = {.posX = code_window.width,
                                          .posY = up_right_window.height,
-                                         .width = tb_width() / 2,
-                                         .height = tb_height() / 2,
+                                         .width = fe_width() / 2,
+                                         .height = fe_height() / 2,
                                          .title = "Bottom Right Window",
                                          .textsNum = 15,
-                                         .texts = lines,
+                                         .texts = instructionsText,
                                          .layout_type = MY_WINDOW_LAYOUT_TYPE_GRID,
                                          .layoutParams = &windowGridParams};
 
-    struct tb_event ev;
     int y = 1;
 
-    // tb_printf(0, y++, TB_GREEN, 0, "hello from termbox");
-    // tb_printf(0, y++, 0, 0, "width=%d height=%d", tb_width(), tb_height());
-    drawWindow(&code_window);
-    drawWindow(&up_right_window);
-    drawWindow(&bottom_right_window);
-    tb_present();
+    fe_drawWindow(&code_window);
+    fe_drawWindow(&up_right_window);
+    fe_drawWindow(&bottom_right_window);
 
-    tb_poll_event(&ev);
-    tb_shutdown();
+    fe_present();
+    fe_execute_events();
+
+    fe_exit();
 
     return 0;
 

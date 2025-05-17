@@ -1,7 +1,8 @@
-#ifndef FRONTEND_H_INCL
-#define FRONTEND_H_INCL
+#ifndef FRONTEND_H
+#define FRONTEND_H
 
 #include <stdbool.h>
+#include "termbox2.h"
 
 #ifndef MY_WINDOW_BORDER_COLOR
 #define MY_WINDOW_BORDER_COLOR TB_GREEN
@@ -36,6 +37,14 @@ struct my_windowLayoutGridParams
     unsigned int horizontal_lines;
 };
 
-void drawWindow(struct Window *window);
+int fe_width(void);
+int fe_height(void);
+
+void fe_init(void);
+void fe_present(void);
+void fe_execute_events(void);
+void fe_exit(void);
+
+void fe_drawWindow(struct Window *window);
 
 #endif
