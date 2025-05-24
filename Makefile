@@ -5,7 +5,7 @@ BUILD_DIR := ./build
 SRC_DIRS := ./src ./deps
 CC = gcc
 CXX = g++  # Change to g++ for C++ files
-CFLAGS = -g -O0  # Add -O0 to disable optimizations for better debugging
+CFLAGS = -g -Wall -O0  # Add -O0 to disable optimizations for better debugging
 CXXFLAGS = -g -O0  # Add this line for C++ files
 
 

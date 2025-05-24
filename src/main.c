@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/ptrace.h>
 
 #define TB_IMPL
 
@@ -11,8 +12,21 @@
 #define my_free free
 #endif
 
-int main()
+int main(int argc, char *argv[])
 {
+
+    if (argc < 2)
+    {
+        printf("Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+    pid_t child = fork();
+    if (child == 0)
+    {
+        ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+        printf("executing %s\n", argv[1]);
+        execv(argv[1], (char *const *)argv[1]);
+    }
 
     printf("running on process %ld\n", (long)getpid());
     // getc(stdin);
@@ -21,7 +35,7 @@ int main()
 
     int instructionCount = 0;
 
-    Instruction *instructions = getInstructions((uint8_t *)textSection.start, textSection.end - textSection.start, (uint64_t)textSection.start, &instructionCount);
+    Instruction *instructions = getInstructions((char *)textSection.start, textSection.end - textSection.start, (uint64_t)textSection.start, &instructionCount);
     const char *instructionsText[instructionCount];
     for (int i = 0; i < instructionCount; i++)
     {
@@ -62,8 +76,6 @@ int main()
                                          .texts = instructionsText,
                                          .layout_type = MY_WINDOW_LAYOUT_TYPE_GRID,
                                          .layoutParams = &windowGridParams};
-
-    int y = 1;
 
     fe_drawWindow(&code_window);
     fe_drawWindow(&up_right_window);
