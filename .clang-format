@@ -1,0 +1,6 @@
+BasedOnStyle: Microsoft
+AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+BreakBeforeClosingParen: Always
+AlignAfterOpenBracket: Align
+ColumnLimit: 0
