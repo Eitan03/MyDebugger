@@ -9,16 +9,99 @@
 #include "getFileTextSection.h"
 #include "utils.h"
 
-#ifndef my_malloc
-#define my_malloc malloc
-#define my_realloc realloc
-#define my_free free
-#endif
+struct my_windowLayoutVerticalParams windowLayoutParams;
+struct my_windowLayoutGridParams windowGridParams;
+struct Window codeWindow = {};
+struct Window upRightWindow = {};
+struct Window bottomRightWindow = {};
+
+char **registersText; /* allocated */
+
+struct user_regs_struct *fpregs; /* allocated */
+
+pid_t initTracee(char *argv[])
+{
+    pid_t traceePid = fork();
+    if (traceePid == -1)
+    {
+        validateErrno(traceePid, "fork");
+    }
+
+    if (traceePid == 0)
+    {
+        mpt_traceMe(argv[1], argv[1]);
+    }
+
+    return traceePid;
+}
+
+void initWindows(int instructionCount, const char *instructionsText[])
+{
+
+    windowLayoutParams = (struct my_windowLayoutVerticalParams){.isLinesNumbered =
+                                                                    true};
+    windowGridParams = (struct my_windowLayoutGridParams){.horizontal_lines = 3};
+
+    codeWindow.posX = 0;
+    codeWindow.posY = 0;
+    codeWindow.width = fe_width() / 2;
+    codeWindow.height = fe_height();
+    codeWindow.title = "My Window";
+    codeWindow.textsNum = instructionCount;
+    codeWindow.texts = instructionsText;
+    codeWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
+    codeWindow.layoutParams = &windowLayoutParams;
+
+    upRightWindow.posX = codeWindow.width;
+    upRightWindow.posY = 0;
+    upRightWindow.width = fe_width() / 2;
+    upRightWindow.height = fe_height() / 2;
+    upRightWindow.title = "Up Right Window";
+    upRightWindow.textsNum = 15;
+    upRightWindow.texts = instructionsText;
+    upRightWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
+    upRightWindow.layoutParams = &windowLayoutParams;
+
+    bottomRightWindow.posX = codeWindow.width;
+    bottomRightWindow.posY = upRightWindow.height;
+    bottomRightWindow.width = fe_width() / 2;
+    bottomRightWindow.height = fe_height() / 2;
+    bottomRightWindow.title = "Registers";
+    bottomRightWindow.textsNum = REGISTERS_NUMBER;
+    bottomRightWindow.texts = (const char **)registersText;
+    bottomRightWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_GRID;
+    bottomRightWindow.layoutParams = &windowGridParams;
+}
+
+void loopFrontend()
+{
+    fe_drawWindow(&codeWindow);
+    fe_drawWindow(&upRightWindow);
+    fe_drawWindow(&bottomRightWindow);
+
+    fe_present();
+    fe_execute_events();
+}
+
+void initAllocatedVariables()
+{
+    registersText = my_realloc(registersText, sizeof(char *) * REGISTERS_NUMBER);
+    validateErrno(registersText == NULL, "realloc");
+    for (int i = 0; i < REGISTERS_NUMBER; i++)
+    {
+        registersText[i] = my_malloc(sizeof(char) * REGISTERS_TEXT_SIZE);
+        validateErrno(registersText[i] == NULL, "malloc");
+    }
+
+    fpregs = my_malloc(sizeof(struct user_regs_struct));
+    validateErrno(fpregs == NULL, "malloc");
+}
 
 int main(int argc, char *argv[])
 {
     printf("running on process %ld\n", (long)getpid());
     getc(stdin);
+    initAllocatedVariables();
 
     if (argc < 2)
     {
@@ -26,33 +109,29 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    pid_t child_pid = fork();
-    if (child_pid == -1)
-    {
-        validateErrno(child_pid, "fork");
-    }
+    pid_t traceePid = initTracee(argv);
 
-    if (child_pid == 0)
-    {
-        mpt_traceMe(argv[1], argv[1]);
-    }
+    mpt_waitForChildExec(traceePid);
+    FileTextSection textSection = getTextSectionFromMaps(traceePid);
+    // textSection.start -= 1; // Align to page size
+    char *instrucitonsBinary = mpt_getDataFromProcess(
+        traceePid,
+        textSection.start,
+        textSection.end - textSection.start);
 
-    struct user_regs_struct *fpregs;
-    fpregs = my_malloc(sizeof(struct user_regs_struct));
-    validateErrno(fpregs == NULL, "malloc");
-
-    wait(NULL);
-    mpt_getRegisters(child_pid, fpregs);
-
-    FileTextSection textSection = getTextSectionFromMaps();
+    mpt_getRegisters(traceePid, fpregs);
+    mpt_regStructToText(fpregs, registersText);
 
     int instructionCount = 0;
 
     Instruction *instructions = getInstructions(
-        (char *)textSection.start,
-        textSection.end - textSection.start,
-        (uint64_t)textSection.start,
+        instrucitonsBinary,
+        textSection.end -
+            textSection.start - 1,
+        textSection.start,
         &instructionCount);
+
+    my_free(instrucitonsBinary);
 
     const char *instructionsText[instructionCount];
     for (int i = 0; i < instructionCount; i++)
@@ -62,52 +141,11 @@ int main(int argc, char *argv[])
 
     fe_init();
 
-    struct my_windowLayoutVerticalParams windowLayoutParams = {.isLinesNumbered =
-                                                                   true};
-    struct my_windowLayoutGridParams windowGridParams = {.horizontal_lines = 3};
+    initWindows(instructionCount, instructionsText);
 
-    struct Window code_window = {.posX = 0,
-                                 .posY = 0,
-                                 .width = fe_width() / 2,
-                                 .height = fe_height(),
-                                 .title = "My Window",
-                                 .textsNum = instructionCount,
-                                 .texts = instructionsText,
-                                 .layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL,
-                                 .layoutParams = &windowLayoutParams};
-
-    struct Window up_right_window = {
-        .posX = code_window.width,
-        .posY = 0,
-        .width = fe_width() / 2,
-        .height = fe_height() / 2,
-        .title = "Up Right Window",
-        .textsNum = 15,
-        .texts = instructionsText,
-        .layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL,
-        .layoutParams = &windowLayoutParams};
-
-    struct Window bottom_right_window = {
-        .posX = code_window.width,
-        .posY = up_right_window.height,
-        .width = fe_width() / 2,
-        .height = fe_height() / 2,
-        .title = "Bottom Right Window",
-        .textsNum = 15,
-        .texts = instructionsText,
-        .layout_type = MY_WINDOW_LAYOUT_TYPE_GRID,
-        .layoutParams = &windowGridParams};
-
-    fe_drawWindow(&code_window);
-    fe_drawWindow(&up_right_window);
-    fe_drawWindow(&bottom_right_window);
-
-    fe_present();
-    fe_execute_events();
+    loopFrontend();
 
     fe_exit();
-
-    return 0;
 
     return 0;
 }

@@ -2,13 +2,31 @@
 
 struct tb_event ev;
 
-int fe_width(void) { tb_width(); }
-int fe_height(void) { tb_height(); }
+int fe_width(void)
+{
+    return tb_width();
+}
+int fe_height(void)
+{
+    return tb_height();
+}
 
-void fe_init(void) { tb_init(); }
-void fe_present(void) { tb_present(); }
-void fe_execute_events(void) { tb_poll_event(&ev); }
-void fe_exit(void) { tb_shutdown(); }
+void fe_init(void)
+{
+    tb_init();
+}
+void fe_present(void)
+{
+    tb_present();
+}
+void fe_execute_events(void)
+{
+    tb_poll_event(&ev);
+}
+void fe_exit(void)
+{
+    tb_shutdown();
+}
 
 void _window_drawBorder(struct Window *window)
 {
@@ -37,8 +55,7 @@ int _centerTextPos(int posX, int width, const char *text)
 
 void _window_drawTitle(struct Window *window)
 {
-    tb_print(_centerTextPos(window->posX, window->width, window->title), window->posY + 2, MY_WINDOW_TITLE_FLAGS, 0,
-             window->title);
+    tb_print(_centerTextPos(window->posX, window->width, window->title), window->posY + 2, MY_WINDOW_TITLE_FLAGS, 0, window->title);
 }
 
 void _window_drawVerticalLayout(struct Window *window)
@@ -62,8 +79,7 @@ void _window_drawVerticalLayout(struct Window *window)
         {
             if (params->isLinesNumbered)
             {
-                tb_printf(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, "%03d: %s", curLineIdx + 1,
-                          window->texts[curLineIdx]);
+                tb_printf(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, "%03d: %s", curLineIdx + 1, window->texts[curLineIdx]);
             }
             else
             {
@@ -125,7 +141,7 @@ void fe_drawWindow(struct Window *window)
 
     default:
         printf("Invalid window layout %d", window->layout_type);
-        exit(1);
+        exit(EXIT_FAILURE);
         break;
     }
 }

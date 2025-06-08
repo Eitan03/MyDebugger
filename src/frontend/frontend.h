@@ -1,8 +1,8 @@
 #ifndef FRONTEND_H
 #define FRONTEND_H
 
-#include <stdbool.h>
 #include "termbox2.h"
+#include <stdbool.h>
 
 #ifndef MY_WINDOW_BORDER_COLOR
 #define MY_WINDOW_BORDER_COLOR TB_GREEN
@@ -23,7 +23,7 @@ struct Window
     const char *title;
     const char **texts;
     unsigned int textsNum;
-    const unsigned int layout_type;
+    unsigned int layout_type;
     void *layoutParams;
 };
 

@@ -1,12 +1,13 @@
 #ifndef GET_FILE_TEXT_SECTION_H
 #define GET_FILE_TEXT_SECTION_H
 
+#include <fcntl.h>
 #include <inttypes.h>
 
 typedef struct FileTextSection
 {
-    char *start;
-    char *end;
+    uint64_t start;
+    uint64_t end;
 } FileTextSection;
 
 typedef struct Instruction
@@ -17,6 +18,7 @@ typedef struct Instruction
 
 Instruction *getInstructions(char *data, uint64_t length, uint64_t runtime_address, int *instructionCount);
 void freeInstructions(Instruction *instructions, int instructionCount);
-FileTextSection getTextSectionFromMaps();
+
+FileTextSection getTextSectionFromMaps(pid_t processId);
 
 #endif

@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "getFileTextSection.h"
+#include "utils.h"
 
 #include "Zydis.h"
 #include <stdio.h>
@@ -21,6 +22,11 @@ int getInstructionCount(char *data, uint64_t length)
     {
         offset += instruction.info.length;
         instrcutionCount++;
+
+        if (offset >= length)
+        {
+            break; // Avoid reading beyond the buffer
+        }
     }
     return instrcutionCount;
 }
@@ -44,7 +50,7 @@ Instruction *getInstructions(char *data, uint64_t length, uint64_t runtime_addre
     if (instructions == NULL)
     {
         fprintf(stderr, "Failed to allocate memory for instructions\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     ZydisDisassembledInstruction zydisInstruction;
@@ -66,6 +72,11 @@ Instruction *getInstructions(char *data, uint64_t length, uint64_t runtime_addre
 
         instructionIndex++;
         offset += zydisInstruction.info.length;
+
+        if (offset >= length)
+        {
+            break; // Avoid reading beyond the buffer
+        }
     }
 
     if (out_instructionCount != NULL)
@@ -84,35 +95,39 @@ void freeInstructions(Instruction *instructions, int instructionCount)
     free(instructions);
 }
 
-FileTextSection getTextSectionFromMaps()
+FileTextSection getTextSectionFromMaps(pid_t processId)
 {
-    FILE *mapsFile = fopen("/proc/self/maps", "r");
+    char *proccessFilePath = my_malloc(sizeof(char) * 32);
+    validateErrno(proccessFilePath == NULL, "malloc");
+    sprintf(proccessFilePath, "/proc/%d/maps", processId);
+
+    FILE *mapsFile = fopen(proccessFilePath, "r");
     if (!mapsFile)
     {
         perror("Failed to open /proc/self/maps");
     }
 
     char line[512];
-    char *text_start = NULL;
-    char *text_end = NULL;
+    uint64_t text_start = 0;
+    uint64_t text_end = 0;
 
     while (fgets(line, sizeof(line), mapsFile))
     {
         if (strstr(line, "r-xp") != NULL)
         {
             char *end;
-            text_start = (char *)strtoul(line, &end, 16);
-            text_end = (char *)strtoul(end + 1, NULL, 16);
+            text_start = strtoul(line, &end, 16);
+            text_end = strtoul(end + 1, NULL, 16);
             break;
         }
     }
 
     fclose(mapsFile);
 
-    if (text_start == NULL)
+    if (text_start == 0)
     {
         fprintf(stderr, "Failed to find start of text section\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     return (FileTextSection){.start = text_start, .end = text_end};
