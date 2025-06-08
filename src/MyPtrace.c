@@ -24,11 +24,27 @@ void mpt_traceMe(char *programName, const char *args)
     execl(programName, args, (char *)NULL);
 }
 
-void mpt_waitForChildExec(pid_t childPid)
+void mpt_listenToChild(pid_t childPid, ChildSignalHandler childSignalHandler)
 {
     int status;
 
-    waitpid(childPid, &status, 0);
+    do
+    {
+        waitpid(childPid, &status, 0);
+        childSignalHandler(status);
+        if (WIFSTOPPED(status))
+        {
+            // Child has stopped due to signal WSTOPSIG(status)
+        }
+        if (WIFSIGNALED(status))
+        {
+            // Child received signal WTERMSIG(status)
+        }
+
+        ptrace(PTRACE_CONT, childPid, NULL, NULL);
+    } while (!WIFEXITED(status));
+    // child exited with code WEXITSTATUS(status)
+
     /*
     // mechanisem to catch nested exec calls, for now we just catch the fist SIGTRAP without setting
     // the PTRACE_O_TRACEEXEC flag

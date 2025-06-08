@@ -30,6 +30,8 @@ struct Window
 struct my_windowLayoutVerticalParams
 {
     bool isLinesNumbered;
+    bool isNumberedHex;
+    int numberedLineStartIndex;
 };
 
 struct my_windowLayoutGridParams

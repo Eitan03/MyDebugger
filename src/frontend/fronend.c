@@ -79,7 +79,7 @@ void _window_drawVerticalLayout(struct Window *window)
         {
             if (params->isLinesNumbered)
             {
-                tb_printf(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, "%03d: %s", curLineIdx + 1, window->texts[curLineIdx]);
+                tb_printf(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, (params->isNumberedHex ? "0x%06x: %s" : "%06d: %s"), params->numberedLineStartIndex + curLineIdx, window->texts[curLineIdx]);
             }
             else
             {

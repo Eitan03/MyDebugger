@@ -11,8 +11,10 @@
 #define REGISTERS_NUMBER 18
 #define REGISTERS_TEXT_SIZE 50
 
+typedef void (*ChildSignalHandler)(int);
+
 void mpt_traceMe(char *programName, const char *args);
-void mpt_waitForChildExec(pid_t childPid);
+void mpt_listenToChild(pid_t childPid, ChildSignalHandler childSignalHandler);
 void mpt_getRegisters(pid_t child_pid, struct user_regs_struct *regs);
 
 void mpt_regStructToText(

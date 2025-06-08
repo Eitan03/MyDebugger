@@ -2,20 +2,23 @@
 
 #define TB_IMPL
 
-#include <sys/wait.h>
-
 #include "MyPtrace.h"
 #include "frontend/frontend.h"
 #include "getFileTextSection.h"
 #include "utils.h"
 
-struct my_windowLayoutVerticalParams windowLayoutParams;
+struct my_windowLayoutVerticalParams codeWindowLayoutParams;
+struct my_windowLayoutVerticalParams upRightWindowLayoutParams;
 struct my_windowLayoutGridParams windowGridParams;
 struct Window codeWindow = {};
 struct Window upRightWindow = {};
 struct Window bottomRightWindow = {};
 
+char *upRightWindowText[] = {"Welcome To My Debugger!"};
+
 char **registersText; /* allocated */
+
+pid_t traceePid;
 
 struct user_regs_struct *fpregs; /* allocated */
 
@@ -35,11 +38,17 @@ pid_t initTracee(char *argv[])
     return traceePid;
 }
 
-void initWindows(int instructionCount, const char *instructionsText[])
+void initWindows(int instructionCount, const char *instructionsText[], uint64_t instructionLineStart)
 {
 
-    windowLayoutParams = (struct my_windowLayoutVerticalParams){.isLinesNumbered =
-                                                                    true};
+    codeWindowLayoutParams = (struct my_windowLayoutVerticalParams){
+        .isLinesNumbered = true,
+        .isNumberedHex = true,
+        .numberedLineStartIndex = instructionLineStart};
+    upRightWindowLayoutParams = (struct my_windowLayoutVerticalParams){
+        .isLinesNumbered = false,
+        .isNumberedHex = false,
+        .numberedLineStartIndex = 0};
     windowGridParams = (struct my_windowLayoutGridParams){.horizontal_lines = 3};
 
     codeWindow.posX = 0;
@@ -50,17 +59,17 @@ void initWindows(int instructionCount, const char *instructionsText[])
     codeWindow.textsNum = instructionCount;
     codeWindow.texts = instructionsText;
     codeWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
-    codeWindow.layoutParams = &windowLayoutParams;
+    codeWindow.layoutParams = &codeWindowLayoutParams;
 
     upRightWindow.posX = codeWindow.width;
     upRightWindow.posY = 0;
     upRightWindow.width = fe_width() / 2;
     upRightWindow.height = fe_height() / 2;
     upRightWindow.title = "Up Right Window";
-    upRightWindow.textsNum = 15;
-    upRightWindow.texts = instructionsText;
+    upRightWindow.textsNum = 1;
+    upRightWindow.texts = (const char **)upRightWindowText;
     upRightWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
-    upRightWindow.layoutParams = &windowLayoutParams;
+    upRightWindow.layoutParams = &upRightWindowLayoutParams;
 
     bottomRightWindow.posX = codeWindow.width;
     bottomRightWindow.posY = upRightWindow.height;
@@ -73,7 +82,32 @@ void initWindows(int instructionCount, const char *instructionsText[])
     bottomRightWindow.layoutParams = &windowGridParams;
 }
 
-void loopFrontend()
+void childSignalHandler(int status)
+{
+    if (WIFSTOPPED(status))
+    {
+        psignal(WSTOPSIG(status), "a");
+        printf("Child has stopped due to signal %d\n", WSTOPSIG(status));
+        // Child has stopped due to signal WSTOPSIG(status)
+    }
+    if (WIFSIGNALED(status))
+    {
+        psignal(WTERMSIG(status), "b");
+        printf("Child received signal %d\n", WTERMSIG(status));
+        // Child received signal WTERMSIG(status)
+    }
+
+    if (WIFEXITED(status))
+    {
+        psignal(WEXITSTATUS(status), "c");
+        printf("Child exited with code %d\n", WEXITSTATUS(status));
+    }
+    // child exited with code WEXITSTATUS(status)
+
+    // drawFrontend();
+}
+
+void drawFrontend()
 {
     fe_drawWindow(&codeWindow);
     fe_drawWindow(&upRightWindow);
@@ -109,9 +143,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    pid_t traceePid = initTracee(argv);
+    traceePid = initTracee(argv);
 
-    mpt_waitForChildExec(traceePid);
+    mpt_listenToChild(traceePid, childSignalHandler);
     FileTextSection textSection = getTextSectionFromMaps(traceePid);
     // textSection.start -= 1; // Align to page size
     char *instrucitonsBinary = mpt_getDataFromProcess(
@@ -141,9 +175,9 @@ int main(int argc, char *argv[])
 
     fe_init();
 
-    initWindows(instructionCount, instructionsText);
+    initWindows(instructionCount, instructionsText, textSection.start);
 
-    loopFrontend();
+    drawFrontend();
 
     fe_exit();
 
