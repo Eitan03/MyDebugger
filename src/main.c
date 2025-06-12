@@ -16,32 +16,17 @@ struct Window bottomRightWindow = {};
 
 char *upRightWindowText[] = {"Welcome To My Debugger!"};
 
-pid_t traceePid;
+mpt_context *traceeContext;
 
 FileTextSection textSection = {};
 
 int instructionCount;
-const char **instructionsText = NULL; /* allocated */
+const Instruction *instructions = NULL; /* allocated */
+const char **instructionsText = NULL;   /* allocated */
 
 char **registersText = NULL; /* allocated */
 
 struct user_regs_struct *fpregs = NULL; /* allocated */
-
-pid_t initTracee(char *argv[])
-{
-    pid_t traceePid = fork();
-    if (traceePid == -1)
-    {
-        validateErrno(traceePid, "fork");
-    }
-
-    if (traceePid == 0)
-    {
-        mpt_traceMe(argv[1], argv[1]);
-    }
-
-    return traceePid;
-}
 
 void initWindows(int instructionCount, const char **instructionsText, uint64_t instructionLineStart)
 {
@@ -146,22 +131,25 @@ void initRegisters()
         validateErrno(fpregs == NULL, "malloc");
     }
 
-    mpt_getRegisters(traceePid, fpregs);
+    mpt_getRegisters(traceeContext, fpregs);
     mpt_regStructToText(fpregs, registersText);
 }
 
 void initInstructions()
 {
-    textSection = getTextSectionFromMaps(traceePid);
-    // textSection.start -= 1; // Align to page size
+    textSection = getTextSectionFromMaps(mpt_getTraceePid(traceeContext));
     char *instrucitonsBinary = mpt_getDataFromProcess(
-        traceePid,
+        traceeContext,
         textSection.start,
         textSection.end - textSection.start);
 
-    instructionCount = 0;
+    if (instructions != NULL)
+    {
+        freeInstructions((Instruction *)instructions, instructionCount);
+    }
 
-    Instruction *instructions = getInstructions(
+    instructionCount = 0;
+    instructions = getInstructions(
         instrucitonsBinary,
         textSection.end -
             textSection.start - 1,
@@ -194,11 +182,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    traceePid = initTracee(argv);
+    traceeContext = mpt_initTrace(argv[1], (const char *)&(argv[2]));
 
     fe_init();
 
-    mpt_listenToChild(traceePid, childSignalHandler);
+    mpt_listenToChild(traceeContext, childSignalHandler);
 
     fe_exit();
 

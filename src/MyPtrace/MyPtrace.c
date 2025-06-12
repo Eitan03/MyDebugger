@@ -7,13 +7,15 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../LinkedList/LinkedList.h"
 #include "../utils/utils.h"
 #include <signal.h>
 
-struct mpt_context
+typedef struct mpt_context
 {
     pid_t childPid;
-};
+    LinkedList *breakpoints;
+} mpt_context;
 
 void mpt_traceMe(char *programName, const char *args)
 {
@@ -30,15 +32,50 @@ void mpt_traceMe(char *programName, const char *args)
     execl(programName, args, (char *)NULL);
 }
 
-void mpt_listenToChild(pid_t childPid, ChildSignalHandler childSignalHandler)
+mpt_context *mpt_initTrace(char *programName, const char *args)
+{
+    pid_t traceePid = fork();
+    if (traceePid == -1)
+    {
+        validateErrno(traceePid, "fork");
+    }
+
+    if (traceePid == 0)
+    {
+        mpt_traceMe(programName, args);
+    }
+
+    mpt_context *traceeContext = (mpt_context *)my_malloc(sizeof(mpt_context));
+    if (traceeContext == NULL)
+    {
+        validateErrno(-1, "malloc");
+    }
+
+    traceeContext->childPid = traceePid;
+    traceeContext->breakpoints = datatypes_linkedList_create(
+        NULL,
+        NULL,
+        NULL,
+        NULL);
+
+    return traceeContext;
+}
+
+void freeContext(mpt_context *ctx)
+{
+    datatypes_linkedList_destroy(ctx->breakpoints);
+    my_free(ctx);
+}
+
+void mpt_listenToChild(mpt_context *ctx, ChildSignalHandler childSignalHandler)
 {
     int status;
 
     do
     {
-        waitpid(childPid, &status, 0);
+        waitpid(ctx->childPid, &status, 0);
         childSignalHandler(status);
-        ptrace(PTRACE_CONT, childPid, NULL, NULL);
+        ptrace(PTRACE_CONT, ctx->childPid, NULL, NULL);
     } while (!WIFEXITED(status));
     // child exited with code WEXITSTATUS(status)
 
@@ -68,9 +105,9 @@ void mpt_listenToChild(pid_t childPid, ChildSignalHandler childSignalHandler)
     */
 }
 
-void mpt_getRegisters(pid_t child_pid, struct user_regs_struct *regs)
+void mpt_getRegisters(mpt_context *ctx, struct user_regs_struct *regs)
 {
-    int err = ptrace(PTRACE_GETREGS, child_pid, NULL, regs);
+    int err = ptrace(PTRACE_GETREGS, ctx->childPid, NULL, regs);
     validateErrno(err, "ptrace");
 }
 
@@ -97,13 +134,13 @@ void mpt_regStructToText(
     sprintf(registersText[17], "eflags: 0x%08llx", regs->eflags);
 }
 
-char *mpt_getDataFromProcess(pid_t processId, uint64_t address, size_t length)
+char *mpt_getDataFromProcess(mpt_context *ctx, uint64_t address, size_t length)
 {
     char *data = my_malloc(length);
     struct iovec local[1] = {{.iov_base = data, .iov_len = length}};
     struct iovec remote[1] = {{.iov_base = (void *)address, .iov_len = length}};
 
-    ssize_t nread = process_vm_readv(processId, local, 2, remote, 1, 0);
+    ssize_t nread = process_vm_readv(ctx->childPid, local, 2, remote, 1, 0);
     if (nread == -1)
     {
         perror("process_vm_readv");
@@ -112,9 +149,14 @@ char *mpt_getDataFromProcess(pid_t processId, uint64_t address, size_t length)
 
     if (nread != length)
     {
-        fprintf(stderr, "Failed to read memory from process %d: %zd bytes read, expected %zu bytes\n", processId, nread, length);
+        fprintf(stderr, "Failed to read memory from process %d: %zd bytes read, expected %zu bytes\n", ctx->childPid, nread, length);
         exit(EXIT_FAILURE);
     }
 
     return data;
+}
+
+pid_t mpt_getTraceePid(mpt_context *ctx)
+{
+    return ctx->childPid;
 }
