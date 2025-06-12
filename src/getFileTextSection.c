@@ -104,7 +104,8 @@ FileTextSection getTextSectionFromMaps(pid_t processId)
     FILE *mapsFile = fopen(proccessFilePath, "r");
     if (!mapsFile)
     {
-        perror("Failed to open /proc/self/maps");
+        perror(proccessFilePath);
+        exit(1);
     }
 
     char line[512];

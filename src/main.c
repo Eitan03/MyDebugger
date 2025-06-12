@@ -99,12 +99,10 @@ void childSignalHandler(int status)
 
     if (WIFEXITED(status))
     {
-        psignal(WEXITSTATUS(status), "c");
         printf("Child exited with code %d\n", WEXITSTATUS(status));
     }
-    // child exited with code WEXITSTATUS(status)
 
-    // drawFrontend();
+    drawFrontend();
 }
 
 void drawFrontend()
