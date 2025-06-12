@@ -4,10 +4,16 @@
 #include <stdlib.h>
 #include <sys/ptrace.h>
 #include <sys/uio.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
-#include "utils.h"
+#include "../utils/utils.h"
 #include <signal.h>
+
+struct mpt_context
+{
+    pid_t childPid;
+};
 
 void mpt_traceMe(char *programName, const char *args)
 {
@@ -32,15 +38,6 @@ void mpt_listenToChild(pid_t childPid, ChildSignalHandler childSignalHandler)
     {
         waitpid(childPid, &status, 0);
         childSignalHandler(status);
-        if (WIFSTOPPED(status))
-        {
-            // Child has stopped due to signal WSTOPSIG(status)
-        }
-        if (WIFSIGNALED(status))
-        {
-            // Child received signal WTERMSIG(status)
-        }
-
         ptrace(PTRACE_CONT, childPid, NULL, NULL);
     } while (!WIFEXITED(status));
     // child exited with code WEXITSTATUS(status)

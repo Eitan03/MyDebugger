@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "getFileTextSection.h"
-#include "utils.h"
+#include "utils/utils.h"
 
 #include "Zydis.h"
 #include <stdio.h>

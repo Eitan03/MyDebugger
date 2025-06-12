@@ -13,6 +13,8 @@
 
 typedef void (*ChildSignalHandler)(int);
 
+struct mpt_context;
+
 void mpt_traceMe(char *programName, const char *args);
 void mpt_listenToChild(pid_t childPid, ChildSignalHandler childSignalHandler);
 void mpt_getRegisters(pid_t child_pid, struct user_regs_struct *regs);
