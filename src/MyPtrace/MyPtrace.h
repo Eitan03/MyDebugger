@@ -16,7 +16,7 @@ typedef void (*ChildSignalHandler)(int);
 typedef struct mpt_context mpt_context;
 
 mpt_context *mpt_initTrace(char *programName, const char *args);
-void freeContext(mpt_context *ctx);
+void mpt_freeContext(mpt_context *ctx);
 void mpt_listenToChild(mpt_context *ctx, ChildSignalHandler childSignalHandler);
 void mpt_getRegisters(mpt_context *ctx, struct user_regs_struct *regs);
 

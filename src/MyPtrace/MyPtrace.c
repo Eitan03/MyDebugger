@@ -61,7 +61,7 @@ mpt_context *mpt_initTrace(char *programName, const char *args)
     return traceeContext;
 }
 
-void freeContext(mpt_context *ctx)
+void mpt_freeContext(mpt_context *ctx)
 {
     datatypes_linkedList_destroy(ctx->breakpoints);
     my_free(ctx);
