@@ -3,17 +3,20 @@
 
 #include "frontend/frontend.h"
 
+#include "LinkedList/LinkedList.h"
 #include "MyPtrace/MyPtrace.h"
 
 extern struct my_windowLayoutVerticalParams codeWindowLayoutParams;
-extern struct my_windowLayoutVerticalParams upRightWindowLayoutParams;
+extern struct my_windowLayoutVerticalParams messagesWindowLayoutParams;
 extern struct my_windowLayoutGridParams windowGridParams;
 
 extern struct Window codeWindow;
-extern struct Window upRightWindow;
-extern struct Window bottomRightWindow;
+extern struct Window messagesWindow;
+extern struct Window registersWindow;
 
-extern char *upRightWindowText[];
+extern LinkedList *messagesWindowText;
+
+void addMessageToMessagesWindow(char *msg);
 
 extern char **registersText; /* allocated */
 

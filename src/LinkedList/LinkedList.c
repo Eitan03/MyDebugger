@@ -1,8 +1,8 @@
 #include "LinkedList.h"
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 LinkedList *datatypes_linkedList_create(ComparisonFunction cmpFunc, FreeValueFunction freeValueFunc, void *cmpFuncAdditionalArgs,
                                         void *freeValueFuncAdditionalArgs)

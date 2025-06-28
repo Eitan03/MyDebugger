@@ -4,6 +4,8 @@
 #include "termbox2.h"
 #include <stdbool.h>
 
+#include "LinkedList/LinkedList.h"
+
 #ifndef MY_WINDOW_BORDER_COLOR
 #define MY_WINDOW_BORDER_COLOR TB_GREEN
 #endif
@@ -21,7 +23,11 @@ struct Window
     unsigned int width;
     unsigned int height;
     const char *title;
-    const char **texts;
+    union {
+        const char **array;
+        LinkedList *list;
+    } texts;
+    bool isTextList; /* true if texts is LinkedList<char*> */
     unsigned int textsNum;
     unsigned int layout_type;
     void *layoutParams;
@@ -43,6 +49,7 @@ int fe_width(void);
 int fe_height(void);
 
 void fe_init(void);
+void fe_clear(void);
 void fe_present(void);
 void fe_execute_events(void);
 void fe_exit(void);

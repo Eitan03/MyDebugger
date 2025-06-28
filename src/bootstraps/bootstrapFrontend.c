@@ -1,16 +1,28 @@
 #include "bootstrapFrontend.h"
+#include "utils/utils.h"
 
 struct my_windowLayoutVerticalParams codeWindowLayoutParams;
-struct my_windowLayoutVerticalParams upRightWindowLayoutParams;
+struct my_windowLayoutVerticalParams messagesWindowLayoutParams;
 struct my_windowLayoutGridParams windowGridParams;
 
 struct Window codeWindow = {};
-struct Window upRightWindow = {};
-struct Window bottomRightWindow = {};
+struct Window messagesWindow = {};
+struct Window registersWindow = {};
 
-char *upRightWindowText[] = {"Welcome To My Debugger!"};
+LinkedList *messagesWindowText = NULL;
 
 char **registersText = NULL; /* allocated */
+
+// used for the LinkedList FreeValueFunction
+void freeString(void *str, void *arg)
+{
+    my_free((char *)str);
+}
+
+void addMessageToMessagesWindow(char *msg)
+{
+    datatypes_linkedList_add(messagesWindowText, msg, 0);
+}
 
 void initWindows(int instructionCount, const char **instructionsText, uint64_t instructionLineStart)
 {
@@ -19,7 +31,7 @@ void initWindows(int instructionCount, const char **instructionsText, uint64_t i
         .isLinesNumbered = true,
         .isNumberedHex = true,
         .numberedLineStartIndex = instructionLineStart};
-    upRightWindowLayoutParams = (struct my_windowLayoutVerticalParams){
+    messagesWindowLayoutParams = (struct my_windowLayoutVerticalParams){
         .isLinesNumbered = false,
         .isNumberedHex = false,
         .numberedLineStartIndex = 0};
@@ -29,38 +41,45 @@ void initWindows(int instructionCount, const char **instructionsText, uint64_t i
     codeWindow.posY = 0;
     codeWindow.width = fe_width() / 2;
     codeWindow.height = fe_height();
-    codeWindow.title = "My Window";
+    codeWindow.title = "Assembly Code";
     codeWindow.textsNum = instructionCount;
-    codeWindow.texts = instructionsText;
+    codeWindow.texts.array = instructionsText;
+    codeWindow.isTextList = false;
     codeWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
     codeWindow.layoutParams = &codeWindowLayoutParams;
 
-    upRightWindow.posX = codeWindow.width;
-    upRightWindow.posY = 0;
-    upRightWindow.width = fe_width() / 2;
-    upRightWindow.height = fe_height() / 2;
-    upRightWindow.title = "Up Right Window";
-    upRightWindow.textsNum = 1;
-    upRightWindow.texts = (const char **)upRightWindowText;
-    upRightWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
-    upRightWindow.layoutParams = &upRightWindowLayoutParams;
+    messagesWindowText = datatypes_linkedList_create(NULL, freeString, NULL, NULL);
 
-    bottomRightWindow.posX = codeWindow.width;
-    bottomRightWindow.posY = upRightWindow.height;
-    bottomRightWindow.width = fe_width() / 2;
-    bottomRightWindow.height = fe_height() / 2;
-    bottomRightWindow.title = "Registers";
-    bottomRightWindow.textsNum = REGISTERS_NUMBER;
-    bottomRightWindow.texts = (const char **)registersText;
-    bottomRightWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_GRID;
-    bottomRightWindow.layoutParams = &windowGridParams;
+    messagesWindow.posX = codeWindow.width;
+    messagesWindow.posY = 0;
+    messagesWindow.width = fe_width() / 2;
+    messagesWindow.height = fe_height() / 2;
+    messagesWindow.title = "Messages";
+    messagesWindow.textsNum = 15;
+    messagesWindow.texts.list = messagesWindowText;
+    messagesWindow.isTextList = true;
+    messagesWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
+    messagesWindow.layoutParams = &messagesWindowLayoutParams;
+
+    registersWindow.posX = codeWindow.width;
+    registersWindow.posY = messagesWindow.height;
+    registersWindow.width = fe_width() / 2;
+    registersWindow.height = fe_height() / 2;
+    registersWindow.title = "Registers";
+    registersWindow.textsNum = REGISTERS_NUMBER;
+    registersWindow.texts.array = (const char **)registersText;
+    registersWindow.isTextList = false;
+    registersWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_GRID;
+    registersWindow.layoutParams = &windowGridParams;
 }
 
 void drawFrontend()
 {
+    fe_clear();
+
     fe_drawWindow(&codeWindow);
-    fe_drawWindow(&upRightWindow);
-    fe_drawWindow(&bottomRightWindow);
+    fe_drawWindow(&messagesWindow);
+    fe_drawWindow(&registersWindow);
 
     fe_present();
     fe_execute_events();

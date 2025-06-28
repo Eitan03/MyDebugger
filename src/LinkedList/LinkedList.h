@@ -10,6 +10,7 @@ typedef struct LinkedNode
     struct LinkedNode *next;
 } LinkedNode;
 
+/* NOT THREAD SAFE */
 typedef struct LinkedList
 {
     unsigned int length;

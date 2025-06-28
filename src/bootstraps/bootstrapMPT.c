@@ -1,4 +1,7 @@
 #include "./bootstrapMPT.h"
+#include "./bootstrapFrontend.h"
+
+#include "stdio.h"
 
 mpt_context *traceeContext;
 
@@ -19,6 +22,8 @@ void loadNewExec()
 
 void childSignalHandler(int status)
 {
+    char *msg;
+    const size_t msg_buffer_len = 128;
     if (WIFSTOPPED(status))
     {
         if (SIGTRAP == WSTOPSIG(status))
@@ -26,16 +31,22 @@ void childSignalHandler(int status)
             loadNewExec();
         }
         // printf("Child has stopped due to signal %d\n", WSTOPSIG(status));
+        msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
+        snprintf(msg, msg_buffer_len, "Child has stopped due to signal %d", WSTOPSIG(status));
+        addMessageToMessagesWindow(msg);
     }
     if (WIFSIGNALED(status))
     {
-        psignal(WTERMSIG(status), "b");
+        // psignal(WTERMSIG(status), "b");
         // printf("Child received signal %d\n", WTERMSIG(status));
     }
 
     if (WIFEXITED(status))
     {
         // printf("Child exited with code %d\n", WEXITSTATUS(status));
+        msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
+        snprintf(msg, msg_buffer_len, "Child exited with code %d\n", WEXITSTATUS(status));
+        addMessageToMessagesWindow(msg);
     }
 
     drawFrontend();

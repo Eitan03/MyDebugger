@@ -15,6 +15,10 @@ void fe_init(void)
 {
     tb_init();
 }
+void fe_clear(void)
+{
+    tb_clear();
+}
 void fe_present(void)
 {
     tb_present();
@@ -58,6 +62,29 @@ void _window_drawTitle(struct Window *window)
     tb_print(_centerTextPos(window->posX, window->width, window->title), window->posY + 2, MY_WINDOW_TITLE_FLAGS, 0, window->title);
 }
 
+/* returns weather overflow was reached or not*/
+bool _drawTextLine(int curLineIdx, struct Window *window, const int topPadding, const int bottomPadding, const int leftPadding, int InitialLinePos, const char *text, struct my_windowLayoutVerticalParams *params)
+{
+    if ((curLineIdx) >= (window->height - topPadding - bottomPadding)) /* overflow bottom */
+    {
+        tb_print(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, "...");
+        return true;
+    }
+    else
+    {
+        if (params->isLinesNumbered)
+        {
+            tb_printf(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, (params->isNumberedHex ? "0x%06x: %s" : "%06d: %s"), params->numberedLineStartIndex + curLineIdx, text);
+        }
+        else
+        {
+            tb_print(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, text);
+        }
+    }
+
+    return false;
+}
+
 void _window_drawVerticalLayout(struct Window *window)
 {
     struct my_windowLayoutVerticalParams *params = (struct my_windowLayoutVerticalParams *)window->layoutParams;
@@ -68,23 +95,28 @@ void _window_drawVerticalLayout(struct Window *window)
     int InitialLinePos = window->posY + topPadding;
 
     int curLineIdx = 0;
-    while (curLineIdx < window->textsNum)
+    LinkedNode *curNode = NULL; /* only used if texts is LinkedList */
+    if (window->isTextList)
     {
-        if ((curLineIdx) >= (window->height - topPadding - bottomPadding)) /* overflow bottom */
+        curNode = window->texts.list->first;
+    }
+
+    while (((!window->isTextList) && curLineIdx < window->textsNum) || (curLineIdx < datatypes_linkedList_length(window->texts.list)))
+    {
+        const char *text;
+        if (window->isTextList)
         {
-            tb_print(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, "...");
-            break;
+            text = (const char *)curNode->value;
+            curNode = curNode->next;
         }
         else
         {
-            if (params->isLinesNumbered)
-            {
-                tb_printf(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, (params->isNumberedHex ? "0x%06x: %s" : "%06d: %s"), params->numberedLineStartIndex + curLineIdx, window->texts[curLineIdx]);
-            }
-            else
-            {
-                tb_print(window->posX + leftPadding, (InitialLinePos + curLineIdx), 0, 0, window->texts[curLineIdx]);
-            }
+            text = window->texts.array[curLineIdx];
+        }
+
+        if (_drawTextLine(curLineIdx, window, topPadding, bottomPadding, leftPadding, InitialLinePos, text, params))
+        {
+            break; /* overflow bottom */
         }
 
         curLineIdx++;
@@ -102,6 +134,12 @@ void _window_drawGridLayout(struct Window *window)
 
     int curLineIdx = 0;
     int curTextIdx = 0;
+    LinkedNode *curNode = NULL; /* only used if texts is LinkedList */
+    if (window->isTextList)
+    {
+        curNode = window->texts.list->first;
+    }
+
     while (curTextIdx < window->textsNum)
     {
         if ((curLineIdx) >= (window->height - topPadding - bottomPadding)) /* overflow bottom */
@@ -115,8 +153,16 @@ void _window_drawGridLayout(struct Window *window)
 
             for (int i = 0; i < params->horizontal_lines || curTextIdx + i < window->textsNum; i++)
             {
-
-                const char *text = window->texts[curTextIdx + i];
+                const char *text;
+                if (window->isTextList)
+                {
+                    text = (const char *)curNode->value;
+                    curNode = curNode->next;
+                }
+                else
+                {
+                    text = window->texts.array[curTextIdx + i];
+                }
                 int textPos = _centerTextPos(window->posX + leftPadding + (i * lineWidth), lineWidth, text);
                 tb_print(textPos, (InitialLinePos + curLineIdx), 0, 0, text);
             }
