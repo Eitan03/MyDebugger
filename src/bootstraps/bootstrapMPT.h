@@ -14,7 +14,7 @@ extern FileTextSection textSection;
 
 extern int instructionCount;
 extern const Instruction *instructions; /* allocated */
-extern const char **instructionsText;   /* allocated */
+extern char **instructionsText;         /* allocated */
 
 extern struct user_regs_struct *fpregs; /* allocated */
 

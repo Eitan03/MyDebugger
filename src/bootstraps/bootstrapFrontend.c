@@ -24,13 +24,13 @@ void addMessageToMessagesWindow(char *msg)
     datatypes_linkedList_add(messagesWindowText, msg, 0);
 }
 
-void initWindows(int instructionCount, const char **instructionsText, uint64_t instructionLineStart)
+void initWindows(int instructionCount, char **instructionsText)
 {
 
     codeWindowLayoutParams = (struct my_windowLayoutVerticalParams){
-        .isLinesNumbered = true,
-        .isNumberedHex = true,
-        .numberedLineStartIndex = instructionLineStart};
+        .isLinesNumbered = false,
+        .isNumberedHex = false,
+        .numberedLineStartIndex = 0};
     messagesWindowLayoutParams = (struct my_windowLayoutVerticalParams){
         .isLinesNumbered = false,
         .isNumberedHex = false,
@@ -43,7 +43,7 @@ void initWindows(int instructionCount, const char **instructionsText, uint64_t i
     codeWindow.height = fe_height();
     codeWindow.title = "Assembly Code";
     codeWindow.textsNum = instructionCount;
-    codeWindow.texts.array = instructionsText;
+    codeWindow.texts.array = (const char **)instructionsText;
     codeWindow.isTextList = false;
     codeWindow.layout_type = MY_WINDOW_LAYOUT_TYPE_VERTICAL;
     codeWindow.layoutParams = &codeWindowLayoutParams;

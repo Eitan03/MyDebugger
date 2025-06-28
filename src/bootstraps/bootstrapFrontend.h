@@ -20,7 +20,7 @@ void addMessageToMessagesWindow(char *msg);
 
 extern char **registersText; /* allocated */
 
-void initWindows(int instructionCount, const char **instructionsText, uint64_t instructionLineStart);
+void initWindows(int instructionCount, char **instructionsText);
 void drawFrontend();
 
 #endif // BOOTSTRAP_FRONTEND_H

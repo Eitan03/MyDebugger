@@ -1,7 +1,7 @@
 #include "./bootstrapMPT.h"
 #include "./bootstrapFrontend.h"
 
-#include "stdio.h"
+#include <stdio.h>
 
 mpt_context *traceeContext;
 
@@ -9,7 +9,7 @@ FileTextSection textSection = {};
 
 int instructionCount;
 const Instruction *instructions = NULL; /* allocated */
-const char **instructionsText = NULL;   /* allocated */
+char **instructionsText = NULL;         /* allocated */
 
 struct user_regs_struct *fpregs = NULL; /* allocated */
 
@@ -17,7 +17,7 @@ void loadNewExec()
 {
     initRegisters();
     initInstructions();
-    initWindows(instructionCount, instructionsText, textSection.start);
+    initWindows(instructionCount, instructionsText);
 }
 
 void childSignalHandler(int status)
@@ -78,16 +78,28 @@ void initRegisters()
 
 void initInstructions()
 {
+    if (instructions != NULL)
+    {
+        freeInstructions((Instruction *)instructions, instructionCount);
+    }
+    if (instructionsText != NULL)
+    {
+        if (instructionCount == 0)
+        {
+            printf("WARNING! freeing instructionsText but instrcutionCount is 0! cant free the insrutction strings");
+        }
+        for (int i = 0; i < instructionCount; i++)
+        {
+            my_free((void *)instructionsText[i]);
+        }
+        my_free(instructionsText);
+    }
+
     textSection = getTextSectionFromMaps(mpt_getTraceePid(traceeContext));
     char *instrucitonsBinary = mpt_getDataFromProcess(
         traceeContext,
         textSection.start,
         textSection.end - textSection.start);
-
-    if (instructions != NULL)
-    {
-        freeInstructions((Instruction *)instructions, instructionCount);
-    }
 
     instructionCount = 0;
     instructions = getInstructions(
@@ -99,16 +111,18 @@ void initInstructions()
 
     my_free(instrucitonsBinary);
 
-    if (instructionsText != NULL)
-    {
-        my_free(instructionsText);
-    }
-    instructionsText = (const char **)my_malloc(sizeof(char *) * instructionCount);
+    instructionsText = (char **)my_malloc(sizeof(char *) * instructionCount);
 
     validateErrno(instructionsText == NULL, "malloc");
+
     for (int i = 0; i < instructionCount; i++)
     {
-        instructionsText[i] = instructions[i].text;
+        const size_t intructionTextLength = (10 + strlen(instructions[i].text) + 1);
+
+        instructionsText[i] = my_malloc(sizeof(char) * intructionTextLength);
+        validateErrno(instructionsText[i] == NULL, "malloc");
+
+        snprintf(instructionsText[i], intructionTextLength, "0x%06lx: %s", instructions[i].address, instructions[i].text);
     }
 }
 
