@@ -20,30 +20,35 @@ void loadNewExec()
     initWindows(instructionCount, instructionsText);
 }
 
+void childExecHandler()
+{
+    loadNewExec();
+    char *msg = (char *)my_malloc(64 * sizeof(char));
+    snprintf(msg, 64, "SIGTRAP Recieved, loaded new exec");
+    addMessageToMessagesWindow(msg);
+
+    drawFrontend();
+}
+
 void childSignalHandler(int status)
 {
     char *msg;
     const size_t msg_buffer_len = 128;
     if (WIFSTOPPED(status))
     {
-        if (SIGTRAP == WSTOPSIG(status))
-        {
-            loadNewExec();
-        }
-        // printf("Child has stopped due to signal %d\n", WSTOPSIG(status));
         msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
-        snprintf(msg, msg_buffer_len, "Child has stopped due to signal %d", WSTOPSIG(status));
+        snprintf(msg, msg_buffer_len, "Child has stopped due to signal %s", strsignal(WSTOPSIG(status)));
         addMessageToMessagesWindow(msg);
     }
     if (WIFSIGNALED(status))
     {
-        // psignal(WTERMSIG(status), "b");
-        // printf("Child received signal %d\n", WTERMSIG(status));
+        msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
+        snprintf(msg, msg_buffer_len, "Child received signal %s\n", strsignal(WTERMSIG(status)));
+        addMessageToMessagesWindow(msg);
     }
 
     if (WIFEXITED(status))
     {
-        // printf("Child exited with code %d\n", WEXITSTATUS(status));
         msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
         snprintf(msg, msg_buffer_len, "Child exited with code %d\n", WEXITSTATUS(status));
         addMessageToMessagesWindow(msg);
@@ -78,6 +83,7 @@ void initRegisters()
 
 void initInstructions()
 {
+    // TODO move to freeMPT and call it here
     if (instructions != NULL)
     {
         freeInstructions((Instruction *)instructions, instructionCount);

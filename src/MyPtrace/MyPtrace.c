@@ -23,11 +23,9 @@ void mpt_traceMe(char *programName, const char *args)
     int err = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
     validateErrno(err, "ptrace");
 
-    /*
     // this is useful to set the PTRACE_O_TRACEEXEC before the child executes
     // to allow catching nested exec calls
-    kill(getpid(), SIGSTOP); // Give tracer time to attach
-    */
+    raise(SIGSTOP); // Give tracer time to attach and set PTRACE_O_TRACEEXEC
 
     execl(programName, args, (char *)NULL);
 }
@@ -67,42 +65,28 @@ void mpt_freeContext(mpt_context *ctx)
     my_free(ctx);
 }
 
-void mpt_listenToChild(mpt_context *ctx, ChildSignalHandler childSignalHandler)
+void mpt_listenToChild(mpt_context *ctx, ChildExecHandler childExecHandler, ChildSignalHandler childSignalHandler)
 {
     int status;
+
+    waitpid(ctx->childPid, &status, 0);
+    ptrace(PTRACE_SETOPTIONS, ctx->childPid, NULL, PTRACE_O_TRACEEXEC);
+    ptrace(PTRACE_CONT, ctx->childPid, NULL, NULL);
 
     do
     {
         waitpid(ctx->childPid, &status, 0);
-        childSignalHandler(status);
-        ptrace(PTRACE_CONT, ctx->childPid, NULL, NULL);
-    } while (!WIFEXITED(status));
-    // child exited with code WEXITSTATUS(status)
-
-    /*
-    // mechanisem to catch nested exec calls, for now we just catch the fist SIGTRAP without setting
-    // the PTRACE_O_TRACEEXEC flag
-    // TODO
-
-    if (WIFSTOPPED(status))
-    {
-        // flag to send specific signal on exec after
-        ptrace(PTRACE_SETOPTIONS, childPid, 0, PTRACE_O_TRACEEXEC);
-        ptrace(PTRACE_CONT, childPid, 0, 0);
-
-        // Wait for exec event
-        waitpid(childPid, &status, 0);
-        if (WIFSTOPPED(status) && (status >> 16) == PTRACE_EVENT_EXEC)
+        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
         {
-            printf("Child has executed execve, new image is loaded\n");
+            childExecHandler();
         }
         else
         {
-            printf("Unexpected stop or error\n");
-            exit(EXIT_FAILURE);
+            childSignalHandler(status);
         }
-    }
-    */
+        ptrace(PTRACE_CONT, ctx->childPid, NULL, NULL);
+    } while (!WIFEXITED(status));
+    // child exited with code WEXITSTATUS(status)
 }
 
 void mpt_getRegisters(mpt_context *ctx, struct user_regs_struct *regs)

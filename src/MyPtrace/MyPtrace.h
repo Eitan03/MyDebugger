@@ -12,12 +12,13 @@
 #define REGISTERS_TEXT_SIZE 50
 
 typedef void (*ChildSignalHandler)(int);
+typedef void (*ChildExecHandler)(void);
 
 typedef struct mpt_context mpt_context;
 
 mpt_context *mpt_initTrace(char *programName, const char *args);
 void mpt_freeContext(mpt_context *ctx);
-void mpt_listenToChild(mpt_context *ctx, ChildSignalHandler childSignalHandler);
+void mpt_listenToChild(mpt_context *ctx, ChildExecHandler childExecHandler, ChildSignalHandler childSignalHandler);
 void mpt_getRegisters(mpt_context *ctx, struct user_regs_struct *regs);
 
 void mpt_regStructToText(
