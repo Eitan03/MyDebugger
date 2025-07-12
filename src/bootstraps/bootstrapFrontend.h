@@ -16,7 +16,7 @@ extern struct Window registersWindow;
 
 extern LinkedList *messagesWindowText;
 
-void addMessageToMessagesWindow(char *msg);
+void addMessageToMessagesWindow(char *fmt, ...);
 
 extern char **registersText; /* allocated */
 

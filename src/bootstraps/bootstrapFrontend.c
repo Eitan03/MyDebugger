@@ -1,6 +1,8 @@
 #include "bootstrapFrontend.h"
 #include "utils/utils.h"
 
+#include <stdarg.h>
+
 struct my_windowLayoutVerticalParams codeWindowLayoutParams;
 struct my_windowLayoutVerticalParams messagesWindowLayoutParams;
 struct my_windowLayoutGridParams windowGridParams;
@@ -19,8 +21,13 @@ void freeString(void *str, void *arg)
     my_free((char *)str);
 }
 
-void addMessageToMessagesWindow(char *msg)
+void addMessageToMessagesWindow(char *fmt, ...)
 {
+    va_list args;
+    va_start(args, fmt);
+    char *msg = (char *)my_malloc(128 * sizeof(char));
+    validateErrno(msg == NULL, "malloc");
+    vsnprintf(msg, 128, fmt, args);
     datatypes_linkedList_add(messagesWindowText, msg, 0);
 }
 

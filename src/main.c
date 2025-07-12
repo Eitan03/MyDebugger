@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
     fe_init();
 
-    mpt_listenToChild(traceeContext, childExecHandler, childSignalHandler);
+    mpt_listenToChild(traceeContext, childExecHandler, childSignalHandler, childExitHandler);
     freeMPT();
 
     fe_exit();

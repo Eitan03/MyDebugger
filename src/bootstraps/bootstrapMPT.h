@@ -21,6 +21,7 @@ extern struct user_regs_struct *fpregs; /* allocated */
 void loadNewExec();
 void childExecHandler();
 void childSignalHandler(int status);
+void childExitHandler(unsigned char status);
 void freeMPT();
 
 void initRegisters();

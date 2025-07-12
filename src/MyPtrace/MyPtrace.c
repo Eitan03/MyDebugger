@@ -7,15 +7,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "../LinkedList/LinkedList.h"
 #include "../utils/utils.h"
+#include "./breakpointListUtils.h"
 #include <signal.h>
 
-typedef struct mpt_context
-{
-    pid_t childPid;
-    LinkedList *breakpoints;
-} mpt_context;
+#define PTRACE_CHECK_IF_NEW_EXEC_CALLED(status) (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
+#define PTRACE_CHECK_IF_EXITED(status) (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXIT << 8)))
 
 void mpt_traceMe(char *programName, const char *args)
 {
@@ -30,7 +27,7 @@ void mpt_traceMe(char *programName, const char *args)
     execl(programName, args, (char *)NULL);
 }
 
-mpt_context *mpt_initTrace(char *programName, const char *args)
+__mpt_context *mpt_initTrace(char *programName, const char *args)
 {
     pid_t traceePid = fork();
     if (traceePid == -1)
@@ -43,45 +40,59 @@ mpt_context *mpt_initTrace(char *programName, const char *args)
         mpt_traceMe(programName, args);
     }
 
-    mpt_context *traceeContext = (mpt_context *)my_malloc(sizeof(mpt_context));
+    __mpt_context *traceeContext = (__mpt_context *)my_malloc(sizeof(__mpt_context));
     if (traceeContext == NULL)
     {
         validateErrno(-1, "malloc");
     }
 
     traceeContext->childPid = traceePid;
-    traceeContext->breakpoints = datatypes_linkedList_create(
-        NULL,
-        NULL,
-        NULL,
-        NULL);
+    traceeContext->breakpoints = createBreakpointsLinkedList();
 
     return traceeContext;
 }
 
-void mpt_freeContext(mpt_context *ctx)
+void mpt_freeContext(__mpt_context *ctx)
 {
     datatypes_linkedList_destroy(ctx->breakpoints);
     my_free(ctx);
 }
 
-void mpt_listenToChild(mpt_context *ctx, ChildExecHandler childExecHandler, ChildSignalHandler childSignalHandler)
+void mpt_listenToChild(__mpt_context *ctx, ChildExecHandler childExecHandler, ChildSignalHandler childSignalHandler, ChildExitHandler childExitHandler)
 {
     int status;
 
     waitpid(ctx->childPid, &status, 0);
-    ptrace(PTRACE_SETOPTIONS, ctx->childPid, NULL, PTRACE_O_TRACEEXEC);
+    ptrace(PTRACE_SETOPTIONS, ctx->childPid, NULL, PTRACE_O_TRACEEXEC ^ PTRACE_O_TRACEEXIT); // allows catching of multiple EXEC and catching exit
     ptrace(PTRACE_CONT, ctx->childPid, NULL, NULL);
 
     do
     {
         waitpid(ctx->childPid, &status, 0);
-        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
+        if (PTRACE_CHECK_IF_NEW_EXEC_CALLED(status))
         {
             childExecHandler();
         }
+        else if (PTRACE_CHECK_IF_EXITED(status))
+        {
+            unsigned long long exit_status;
+            ptrace(PTRACE_GETEVENTMSG, ctx->childPid, NULL, &exit_status);
+            childExitHandler((unsigned char)exit_status);
+            break;
+        }
         else
         {
+            if (WIFSTOPPED(status) & (WSTOPSIG(status) == SIGTRAP))
+            {
+                if (isBreakpointHit(ctx))
+                {
+                    handleBreakpoint(ctx);
+                }
+                else
+                {
+                    printf("warning! caught SIGTRAP signal altough no breakpoint exists there!");
+                }
+            }
             childSignalHandler(status);
         }
         ptrace(PTRACE_CONT, ctx->childPid, NULL, NULL);
@@ -89,9 +100,15 @@ void mpt_listenToChild(mpt_context *ctx, ChildExecHandler childExecHandler, Chil
     // child exited with code WEXITSTATUS(status)
 }
 
-void mpt_getRegisters(mpt_context *ctx, struct user_regs_struct *regs)
+void mpt_getRegisters(__mpt_context *ctx, struct user_regs_struct *regs)
 {
     int err = ptrace(PTRACE_GETREGS, ctx->childPid, NULL, regs);
+    validateErrno(err, "ptrace");
+}
+
+void mpt_setRegisters(__mpt_context *ctx, struct user_regs_struct *regs)
+{
+    int err = ptrace(PTRACE_SETREGS, ctx->childPid, NULL, regs);
     validateErrno(err, "ptrace");
 }
 
@@ -118,7 +135,7 @@ void mpt_regStructToText(
     sprintf(registersText[17], "eflags: 0x%08llx", regs->eflags);
 }
 
-char *mpt_getDataFromProcess(mpt_context *ctx, uint64_t address, size_t length)
+char *mpt_getDataFromProcess(__mpt_context *ctx, uint64_t address, size_t length)
 {
     char *data = my_malloc(length);
     struct iovec local[1] = {{.iov_base = data, .iov_len = length}};
@@ -140,7 +157,12 @@ char *mpt_getDataFromProcess(mpt_context *ctx, uint64_t address, size_t length)
     return data;
 }
 
-pid_t mpt_getTraceePid(mpt_context *ctx)
+int mpt_setBreakpoint(__mpt_context *ctx, uint64_t address)
+{
+    return addBreakpoint(ctx, address);
+}
+
+pid_t mpt_getTraceePid(__mpt_context *ctx)
 {
     return ctx->childPid;
 }

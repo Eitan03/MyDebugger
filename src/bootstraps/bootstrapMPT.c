@@ -22,38 +22,52 @@ void loadNewExec()
 
 void childExecHandler()
 {
+    // not tested with multiple exec
     loadNewExec();
-    char *msg = (char *)my_malloc(64 * sizeof(char));
-    snprintf(msg, 64, "SIGTRAP Recieved, loaded new exec");
-    addMessageToMessagesWindow(msg);
+    addMessageToMessagesWindow("SIGTRAP Recieved, loaded new exec");
+    mpt_setBreakpoint(traceeContext, 0x401013);
 
     drawFrontend();
 }
 
 void childSignalHandler(int status)
 {
-    char *msg;
-    const size_t msg_buffer_len = 128;
+
+    struct user_regs_struct regs;
+    mpt_getRegisters(traceeContext, &regs);
+    mpt_regStructToText(&regs, registersText);
+
     if (WIFSTOPPED(status))
     {
-        msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
-        snprintf(msg, msg_buffer_len, "Child has stopped due to signal %s", strsignal(WSTOPSIG(status)));
-        addMessageToMessagesWindow(msg);
+        addMessageToMessagesWindow("Child has stopped due to signal %s", strsignal(WSTOPSIG(status)));
     }
     if (WIFSIGNALED(status))
     {
-        msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
-        snprintf(msg, msg_buffer_len, "Child received signal %s\n", strsignal(WTERMSIG(status)));
-        addMessageToMessagesWindow(msg);
+        addMessageToMessagesWindow("Child received signal %s\n", strsignal(WTERMSIG(status)));
+        if (WTERMSIG(status) == SIGTRAP)
+        {
+            struct user_regs_struct regs;
+            mpt_getRegisters(traceeContext, &regs);
+            addMessageToMessagesWindow("Breakpoint at line %llx hit", regs.rip);
+        }
     }
 
     if (WIFEXITED(status))
     {
-        msg = (char *)my_malloc(msg_buffer_len * sizeof(char));
-        snprintf(msg, msg_buffer_len, "Child exited with code %d\n", WEXITSTATUS(status));
-        addMessageToMessagesWindow(msg);
+        // used on exit, should use the childExitHandler instead since
+        // some data (like registers info) is missing here
     }
 
+    drawFrontend();
+}
+
+void childExitHandler(unsigned char status)
+{
+    struct user_regs_struct regs;
+    mpt_getRegisters(traceeContext, &regs);
+    mpt_regStructToText(&regs, registersText);
+
+    addMessageToMessagesWindow("Child exited with code %u\n", status);
     drawFrontend();
 }
 
